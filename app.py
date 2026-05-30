@@ -14,9 +14,9 @@ DB = "data/rc24.db"
 os.makedirs("screenshots", exist_ok=True)
 
 st.set_page_config(
-    page_title="RCPL Tournament AI Chatbot",
+    page_title="RC24 Blitz Championship",
     page_icon="🏏",
-    layout="wide"
+    layout="wide",
 )
 
 
@@ -112,7 +112,7 @@ st.markdown(
 
 # ---------- TITLE ----------
 st.markdown(
-    "<h1>🏏 RCPL Tournament AI Chatbot</h1>",
+    "<h1>🏏 RC24 BLITZ WHEEL CHAMPIONSHIP</h1>",
     unsafe_allow_html=True,
 )
 
@@ -132,7 +132,7 @@ with tab1:
     st.subheader("Upload Match Result")
 
     mid = st.number_input(
-        "Match Number",
+        "Match ID",
         min_value=1,
         max_value=25,
         step=1,
@@ -142,21 +142,43 @@ with tab1:
         "Upload Screenshot"
     )
 
+    detected_s1 = None
+    detected_s2 = None
+
     if file:
         path = f"screenshots/{file.name}"
 
         with open(path, "wb") as f:
             f.write(file.getbuffer())
 
-        s1, s2 = read_scores(path)
+        detected_s1, detected_s2 = read_scores(path)
 
-        st.success(
-            f"Detected Score: {s1} - {s2}"
-        )
+        if detected_s1 is not None:
+            st.success(
+                f"OCR detected: {detected_s1} - {detected_s2}"
+            )
+        else:
+            st.warning(
+                "OCR unavailable. Enter scores manually."
+            )
 
-        if st.button("Save Result"):
-            update_match(mid, s1, s2)
-            st.success("Result saved successfully ✅")
+    score1 = st.number_input(
+        "Team 1 score",
+        min_value=0,
+        step=1,
+        value=detected_s1 or 0,
+    )
+
+    score2 = st.number_input(
+        "Team 2 score",
+        min_value=0,
+        step=1,
+        value=detected_s2 or 0,
+    )
+
+    if st.button("Save Result"):
+        update_match(mid, score1, score2)
+        st.success("Result saved successfully ✅")
 
 
 # ---------- TAB 2 ----------
