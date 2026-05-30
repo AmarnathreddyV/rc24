@@ -1,52 +1,52 @@
-from dotenv import load_dotenv
-import os
 import sqlite3
+import os
+import streamlit as st
 
 from langchain_mistralai import ChatMistralAI
 from langchain_core.prompts import ChatPromptTemplate
 
-load_dotenv()
-
 DB = "data/rc24.db"
 
+api_key = st.secrets.get(
+    "MISTRAL_API_KEY",
+    os.getenv("MISTRAL_API_KEY"),
+)
 
 llm = ChatMistralAI(
     model="mistral-small-latest",
-    api_key=os.getenv("MISTRAL_API_KEY"),
-    temperature=0.2,
+    api_key=api_key,
+    temperature=0,
 )
-
 
 prompt = ChatPromptTemplate.from_messages(
     [
         (
             "system",
             """
-You are RC24 Blitz Wheel Championship Assistant.
+You are the RCPL Champions League tournament assistant.
 
-Tournament rules:
+Answer ONLY using the tournament data.
+
+Rules:
 - Win = 3 points
 - Tie = 1 point
 - Loss = 0 points
-- Rank by points first
-- If tied, use RRD
+- Rank by pts then rrd
 
-Answer only using tournament data.
-
-You can answer:
-- who has pending matches
-- top 4 standings
-- next fixtures
-- qualification chances
-- player stats
-
-Keep answers short and accurate.
+Very important:
+- Never guess.
+- If a match is not played say "pending".
+- If asked top 4, return exactly top 4.
+- Use team names exactly as provided.
+- Use standings table first before answering.
+- Keep answers short and accurate.
 """,
         ),
         (
             "human",
             """
-Tournament Context:
+Tournament Data:
+
 {context}
 
 Question:
@@ -61,57 +61,80 @@ def get_context():
     conn = sqlite3.connect(DB)
     c = conn.cursor()
 
-    c.execute(
-        """
-        SELECT *
+    # standings
+    c.execute("""
+        SELECT player, played, win, loss, tie, pts, rrd
         FROM standings
         ORDER BY pts DESC, rrd DESC
-        """
-    )
-    standings = c.fetchall()
+    """)
 
-    c.execute(
-        """
-        SELECT *
-        FROM matches
-        WHERE done = 0
-        """
-    )
-    pending = c.fetchall()
+    standings_rows = c.fetchall()
 
-    c.execute(
-        """
-        SELECT *
+    standings_text = "STANDINGS:\n"
+
+    for row in standings_rows:
+        standings_text += (
+            f"{row[0]} | "
+            f"P:{row[1]} "
+            f"W:{row[2]} "
+            f"L:{row[3]} "
+            f"T:{row[4]} "
+            f"Pts:{row[5]} "
+            f"RRD:{row[6]}\n"
+        )
+
+    # pending
+    c.execute("""
+        SELECT id,p1,p2
         FROM matches
-        WHERE done = 1
-        """
-    )
-    completed = c.fetchall()
+        WHERE done=0
+        ORDER BY id
+    """)
+
+    pending_rows = c.fetchall()
+
+    pending_text = "\nPENDING MATCHES:\n"
+
+    for row in pending_rows:
+        pending_text += (
+            f"Match {row[0]}: "
+            f"{row[1]} vs {row[2]}\n"
+        )
+
+    # completed
+    c.execute("""
+        SELECT id,p1,p2,s1,s2
+        FROM matches
+        WHERE done=1
+        ORDER BY id
+    """)
+
+    done_rows = c.fetchall()
+
+    completed_text = "\nCOMPLETED MATCHES:\n"
+
+    for row in done_rows:
+        completed_text += (
+            f"Match {row[0]}: "
+            f"{row[1]} {row[3]} - "
+            f"{row[4]} {row[2]}\n"
+        )
 
     conn.close()
 
-    context = f"""
-Standings:
-{standings}
-
-Pending Matches:
-{pending}
-
-Completed Matches:
-{completed}
-"""
-
-    return context
+    return (
+        standings_text
+        + completed_text
+        + pending_text
+    )
 
 
 def ask_bot(question):
-    context = get_context()
-
     chain = prompt | llm
 
     response = chain.invoke(
         {
-            "context": context,
+            "context": get_context(),
             "question": question,
         }
     )
