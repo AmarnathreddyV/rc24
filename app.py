@@ -138,6 +138,29 @@ with tab1:
         step=1,
     )
 
+    # get teams for match
+    conn = sqlite3.connect(DB)
+    cursor = conn.cursor()
+
+    cursor.execute(
+        "SELECT p1, p2 FROM matches WHERE id=?",
+        (mid,),
+    )
+
+    match = cursor.fetchone()
+    conn.close()
+
+    team1 = match[0]
+    team2 = match[1]
+
+    st.markdown(
+        f"""
+        ### 🏏 Match {mid}
+
+        **{team1}** vs **{team2}**
+        """
+    )
+
     file = st.file_uploader(
         "Upload Screenshot"
     )
@@ -155,7 +178,7 @@ with tab1:
 
         if detected_s1 is not None:
             st.success(
-                f"OCR detected: {detected_s1} - {detected_s2}"
+                f"OCR detected: {team1} {detected_s1} - {detected_s2} {team2}"
             )
         else:
             st.warning(
@@ -163,14 +186,14 @@ with tab1:
             )
 
     score1 = st.number_input(
-        "Team 1 score",
+        f"{team1} score",
         min_value=0,
         step=1,
         value=detected_s1 or 0,
     )
 
     score2 = st.number_input(
-        "Team 2 score",
+        f"{team2} score",
         min_value=0,
         step=1,
         value=detected_s2 or 0,
@@ -178,7 +201,10 @@ with tab1:
 
     if st.button("Save Result"):
         update_match(mid, score1, score2)
-        st.success("Result saved successfully ✅")
+
+        st.success(
+            f"Saved: {team1} {score1} - {score2} {team2} ✅"
+        )
 
 
 # ---------- TAB 2 ----------
