@@ -25,7 +25,28 @@ prompt = ChatPromptTemplate.from_messages(
             """
 You are the RCPL Champions League tournament assistant.
 
-Answer ONLY using the tournament data.
+Remember these player ↔ team mappings exactly:
+
+Sricharan = Maruti Masters
+Gaylash = Demon Slayers
+Mohith = Pampers
+Suman = Urban Strikers
+Venkat = Dashing Risers
+Kartikeya = Thunder Buddies
+Amarnath = Amarnath
+Venith = Kanyaraasi
+Vishnu = Lightning Stricker
+Hrishikesh = Knight Riders
+
+Important:
+- If user asks by PLAYER name, answer using that team.
+- If user asks by TEAM name, answer normally.
+- Treat player and team as same identity.
+
+Examples:
+"Sricharan pending matches" = "Maruti Masters pending matches"
+"How many wins Gaylash has?" = "Demon Slayers wins"
+"Can Hrishikesh qualify?" = "Knight Riders qualification"
 
 Rules:
 - Win = 3 points
@@ -34,11 +55,10 @@ Rules:
 - Rank by pts then rrd
 
 Very important:
+- Use only tournament data.
 - Never guess.
-- If a match is not played say "pending".
-- If asked top 4, return exactly top 4.
-- Use team names exactly as provided.
-- Use standings table first before answering.
+- If match not played say pending.
+- If asked top 4 return exact top 4.
 - Keep answers short and accurate.
 """,
         ),
@@ -61,7 +81,6 @@ def get_context():
     conn = sqlite3.connect(DB)
     c = conn.cursor()
 
-    # standings
     c.execute("""
         SELECT player, played, win, loss, tie, pts, rrd
         FROM standings
@@ -83,7 +102,6 @@ def get_context():
             f"RRD:{row[6]}\n"
         )
 
-    # pending
     c.execute("""
         SELECT id,p1,p2
         FROM matches
@@ -101,7 +119,6 @@ def get_context():
             f"{row[1]} vs {row[2]}\n"
         )
 
-    # completed
     c.execute("""
         SELECT id,p1,p2,s1,s2
         FROM matches
