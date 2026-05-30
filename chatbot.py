@@ -9,7 +9,7 @@ DB = "data/rc24.db"
 
 PLAYER_MAP = {
     "Sricharan": "Maruti Masters",
-    "Gaylash": "Demon Slayers",
+    "kailash": "Demon Slayers",
     "Mohith": "Pampers",
     "Suman": "Urban Strikers",
     "Venkat": "Dashing Risers",
