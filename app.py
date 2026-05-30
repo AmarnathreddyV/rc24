@@ -132,7 +132,7 @@ with tab1:
     st.subheader("Upload Match Result")
 
     mid = st.number_input(
-        "Match ID",
+        "Match Number",
         min_value=1,
         max_value=25,
         step=1,
