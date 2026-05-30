@@ -4,7 +4,7 @@ import sqlite3
 import os
 import base64
 
-from db import init_db
+from db import init_db, PLAYERS
 from ocr_reader import read_scores
 from scheduler import update_match
 from chatbot import ask_bot
@@ -30,7 +30,7 @@ init_db()
 bg_img = get_base64("rcpic.jpg")
 
 
-# ---------- CUSTOM CSS ----------
+# ---------- CSS ----------
 st.markdown(
     f"""
     <style>
@@ -39,7 +39,6 @@ st.markdown(
         background-image: url("data:image/jpg;base64,{bg_img}");
         background-size: cover;
         background-position: center;
-        background-repeat: no-repeat;
         background-attachment: fixed;
     }}
 
@@ -49,59 +48,18 @@ st.markdown(
         padding: 25px;
     }}
 
-    h1, h2, h3 {{
+    h1,h2,h3,label {{
         color: white !important;
-        text-align: center;
-    }}
-
-    label {{
-        color: white !important;
-        font-weight: bold;
-    }}
-
-    [data-testid="stTabs"] {{
-        background: rgba(255,255,255,0.08);
-        border-radius: 20px;
-        padding: 10px;
-    }}
-
-    [data-testid="stDataFrame"] {{
-        background: rgba(255,255,255,0.08);
-        border-radius: 18px;
-    }}
-
-    .stTextInput > div > div > input {{
-        border-radius: 12px;
-        background: rgba(255,255,255,0.15);
-        color: white;
-        border: 1px solid rgba(255,255,255,0.25);
-    }}
-
-    .stNumberInput input {{
-        border-radius: 12px;
     }}
 
     .stButton button {{
-        width: 100%;
-        border-radius: 14px;
-        font-weight: bold;
-        font-size: 16px;
+        width:100%;
+        border-radius:14px;
+        font-weight:bold;
         background: linear-gradient(
-            135deg,
-            #ff9800,
-            #ff5722
+            135deg,#ff9800,#ff5722
         );
-        color: white;
-        border: none;
-        padding: 10px;
-    }}
-
-    .stButton button:hover {{
-        transform: scale(1.02);
-    }}
-
-    .block-container {{
-        padding-top: 2rem;
+        color:white;
     }}
 
     </style>
@@ -110,14 +68,11 @@ st.markdown(
 )
 
 
-# ---------- TITLE ----------
 st.markdown(
     "<h1>🏏 RC24 BLITZ WHEEL CHAMPIONSHIP</h1>",
     unsafe_allow_html=True,
 )
 
-
-# ---------- TABS ----------
 tab1, tab2, tab3 = st.tabs(
     [
         "📸 Upload Result",
@@ -126,43 +81,30 @@ tab1, tab2, tab3 = st.tabs(
     ]
 )
 
-
 # ---------- TAB 1 ----------
 with tab1:
-    st.subheader("Upload Match Result")
+    st.subheader("Enter Match Result")
 
-    mid = st.number_input(
-        "Match ID",
-        min_value=1,
-        max_value=25,
-        step=1,
-    )
+    col1, col2 = st.columns(2)
 
-    # get teams for match
-    conn = sqlite3.connect(DB)
-    cursor = conn.cursor()
+    with col1:
+        team1 = st.selectbox(
+            "Select Team 1",
+            PLAYERS,
+        )
 
-    cursor.execute(
-        "SELECT p1, p2 FROM matches WHERE id=?",
-        (mid,),
-    )
+    with col2:
+        team2 = st.selectbox(
+            "Select Team 2",
+            PLAYERS,
+            index=1,
+        )
 
-    match = cursor.fetchone()
-    conn.close()
-
-    team1 = match[0]
-    team2 = match[1]
-
-    st.markdown(
-        f"""
-        ### 🏏 Match {mid}
-
-        **{team1}** vs **{team2}**
-        """
-    )
+    if team1 == team2:
+        st.warning("Choose two different teams.")
 
     file = st.file_uploader(
-        "Upload Screenshot"
+        "Upload Screenshot (optional)"
     )
 
     detected_s1 = None
@@ -178,33 +120,58 @@ with tab1:
 
         if detected_s1 is not None:
             st.success(
-                f"OCR detected: {team1} {detected_s1} - {detected_s2} {team2}"
-            )
-        else:
-            st.warning(
-                "OCR unavailable. Enter scores manually."
+                f"OCR: {team1} {detected_s1} - {detected_s2} {team2}"
             )
 
     score1 = st.number_input(
         f"{team1} score",
         min_value=0,
-        step=1,
         value=detected_s1 or 0,
     )
 
     score2 = st.number_input(
         f"{team2} score",
         min_value=0,
-        step=1,
         value=detected_s2 or 0,
     )
 
     if st.button("Save Result"):
-        update_match(mid, score1, score2)
 
-        st.success(
-            f"Saved: {team1} {score1} - {score2} {team2} ✅"
+        conn = sqlite3.connect(DB)
+        c = conn.cursor()
+
+        c.execute(
+            """
+            SELECT id
+            FROM matches
+            WHERE done=0
+            AND (
+                (p1=? AND p2=?)
+                OR
+                (p1=? AND p2=?)
+            )
+            """,
+            (team1, team2, team2, team1),
         )
+
+        match = c.fetchone()
+        conn.close()
+
+        if match:
+            update_match(
+                match[0],
+                score1,
+                score2,
+            )
+
+            st.success(
+                f"Saved: {team1} {score1} - {score2} {team2} ✅"
+            )
+
+        else:
+            st.error(
+                "No pending scheduled match found for these teams."
+            )
 
 
 # ---------- TAB 2 ----------
