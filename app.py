@@ -14,7 +14,7 @@ DB = "data/rc24.db"
 os.makedirs("screenshots", exist_ok=True)
 
 st.set_page_config(
-    page_title="RC24 Blitz Championship",
+    page_title="RCPL CHAMPIONS LEAGUE",
     page_icon="🏏",
     layout="wide",
 )
@@ -89,7 +89,7 @@ st.markdown(
 
 # ---------- TITLE ----------
 st.markdown(
-    "<h1>🏏 RC24 BLITZ WHEEL CHAMPIONSHIP</h1>",
+    "<h1>🏏 RCPL CHAMPIONS LEAGUE </h1>",
     unsafe_allow_html=True,
 )
 
