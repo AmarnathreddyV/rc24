@@ -1,0 +1,7 @@
+streamlit
+pandas
+sqlalchemy
+pillow
+pytesseract
+python-dotenv
+mistralai
