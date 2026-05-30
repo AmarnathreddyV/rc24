@@ -23,43 +23,44 @@ prompt = ChatPromptTemplate.from_messages(
         (
             "system",
             """
-You are the RCPL Champions League tournament assistant.
+You are the RCPL Champions League assistant.
 
-Remember these player ↔ team mappings exactly:
+Player ↔ Team mapping:
 
-Sricharan = Maruti Masters
-Gaylash = Demon Slayers
-Mohith = Pampers
-Suman = Urban Strikers
-Venkat = Dashing Risers
-Kartikeya = Thunder Buddies
-Amarnath = Amarnath
-Venith = Kanyaraasi
-Vishnu = Lightning Stricker
-Hrishikesh = Knight Riders
+Sricharan (Maruti Masters)
+kailash (Demon Slayers)
+Mohith (Pampers)
+Suman (Urban Strikers)
+Venkat (Dashing Risers)
+Kartikeya (Thunder Buddies)
+Amarnath (Amarnath)
+Venith (Kanyaraasi)
+Vishnu (Lightning Stricker)
+Hrishikesh (Knight Riders)
 
-Important:
-- If user asks by PLAYER name, answer using that team.
-- If user asks by TEAM name, answer normally.
-- Treat player and team as same identity.
+IMPORTANT:
+- Always mention player + team together.
+- Never say only team name.
+- Never say only player name.
 
 Examples:
-"Sricharan pending matches" = "Maruti Masters pending matches"
-"How many wins Gaylash has?" = "Demon Slayers wins"
-"Can Hrishikesh qualify?" = "Knight Riders qualification"
+
+Correct:
+Sricharan (Maruti Masters)
+Venkat (Dashing Risers)
+
+Wrong:
+Maruti Masters
+Venkat
 
 Rules:
-- Win = 3 points
-- Tie = 1 point
-- Loss = 0 points
-- Rank by pts then rrd
+- Win = 3
+- Tie = 1
+- Loss = 0
 
-Very important:
-- Use only tournament data.
-- Never guess.
-- If match not played say pending.
-- If asked top 4 return exact top 4.
-- Keep answers short and accurate.
+Use only tournament data.
+Never guess.
+Keep answers short and accurate.
 """,
         ),
         (
@@ -87,12 +88,12 @@ def get_context():
         ORDER BY pts DESC, rrd DESC
     """)
 
-    standings_rows = c.fetchall()
+    rows = c.fetchall()
 
-    standings_text = "STANDINGS:\n"
+    standings = "STANDINGS:\n"
 
-    for row in standings_rows:
-        standings_text += (
+    for row in rows:
+        standings += (
             f"{row[0]} | "
             f"P:{row[1]} "
             f"W:{row[2]} "
@@ -109,41 +110,17 @@ def get_context():
         ORDER BY id
     """)
 
-    pending_rows = c.fetchall()
+    pending = "\nPENDING MATCHES:\n"
 
-    pending_text = "\nPENDING MATCHES:\n"
-
-    for row in pending_rows:
-        pending_text += (
+    for row in c.fetchall():
+        pending += (
             f"Match {row[0]}: "
             f"{row[1]} vs {row[2]}\n"
         )
 
-    c.execute("""
-        SELECT id,p1,p2,s1,s2
-        FROM matches
-        WHERE done=1
-        ORDER BY id
-    """)
-
-    done_rows = c.fetchall()
-
-    completed_text = "\nCOMPLETED MATCHES:\n"
-
-    for row in done_rows:
-        completed_text += (
-            f"Match {row[0]}: "
-            f"{row[1]} {row[3]} - "
-            f"{row[4]} {row[2]}\n"
-        )
-
     conn.close()
 
-    return (
-        standings_text
-        + completed_text
-        + pending_text
-    )
+    return standings + pending
 
 
 def ask_bot(question):
