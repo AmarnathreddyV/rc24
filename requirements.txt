@@ -1,7 +1,9 @@
 streamlit
 pandas
-sqlalchemy
 pillow
 pytesseract
 python-dotenv
+langchain
+langchain-core
+langchain-mistralai
 mistralai
