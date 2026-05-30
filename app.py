@@ -69,7 +69,7 @@ st.markdown(
 
 
 st.markdown(
-    "<h1>🏏 RC24 BLITZ WHEEL CHAMPIONSHIP</h1>",
+    "<h1>🏏 RCPL TOURNAMENT AI CHATBOT </h1>",
     unsafe_allow_html=True,
 )
 
