@@ -4,7 +4,7 @@ import sqlite3
 import os
 import base64
 
-from db import init_db, PLAYERS
+from db import init_db
 from ocr_reader import read_scores
 from scheduler import update_match
 from chatbot import ask_bot
@@ -34,7 +34,6 @@ bg_img = get_base64("rcpic.jpg")
 st.markdown(
     f"""
     <style>
-
     .stApp {{
         background-image: url("data:image/jpg;base64,{bg_img}");
         background-size: cover;
@@ -49,7 +48,7 @@ st.markdown(
     }}
 
     h1,h2,h3,label {{
-        color: white !important;
+        color:white !important;
     }}
 
     .stButton button {{
@@ -61,47 +60,57 @@ st.markdown(
         );
         color:white;
     }}
-
     </style>
     """,
     unsafe_allow_html=True,
 )
 
-
 st.markdown(
-    "<h1>🏏 RCPL TOURNAMENT AI CHATBOT </h1>",
+    "<h1>🏏 RC24 BLITZ WHEEL CHAMPIONSHIP</h1>",
     unsafe_allow_html=True,
 )
 
 tab1, tab2, tab3 = st.tabs(
-    [
-        "📸 Upload Result",
-        "📊 Points Table",
-        "🤖 Ask Bot",
-    ]
+    ["📸 Upload Result", "📊 Points Table", "🤖 Ask Bot"]
 )
 
 # ---------- TAB 1 ----------
 with tab1:
-    st.subheader("Enter Match Result")
+    st.subheader("Upload Match Result")
 
-    col1, col2 = st.columns(2)
+    mid = st.number_input(
+        "Match Number",
+        min_value=1,
+        max_value=25,
+        step=1,
+    )
 
-    with col1:
-        team1 = st.selectbox(
-            "Select Team 1",
-            PLAYERS,
-        )
+    # fetch scheduled teams
+    conn = sqlite3.connect(DB)
+    c = conn.cursor()
 
-    with col2:
-        team2 = st.selectbox(
-            "Select Team 2",
-            PLAYERS,
-            index=1,
-        )
+    c.execute(
+        "SELECT p1,p2,done FROM matches WHERE id=?",
+        (mid,),
+    )
 
-    if team1 == team2:
-        st.warning("Choose two different teams.")
+    match = c.fetchone()
+    conn.close()
+
+    team1 = match[0]
+    team2 = match[1]
+    done = match[2]
+
+    st.markdown(
+        f"""
+### 🏏 Match {mid}
+
+**{team1} vs {team2}**
+"""
+    )
+
+    if done:
+        st.warning("Result already saved for this match.")
 
     file = st.file_uploader(
         "Upload Screenshot (optional)"
@@ -122,57 +131,31 @@ with tab1:
             st.success(
                 f"OCR: {team1} {detected_s1} - {detected_s2} {team2}"
             )
+        else:
+            st.info(
+                "OCR unavailable. Enter manually."
+            )
 
     score1 = st.number_input(
         f"{team1} score",
         min_value=0,
+        step=1,
         value=detected_s1 or 0,
     )
 
     score2 = st.number_input(
         f"{team2} score",
         min_value=0,
+        step=1,
         value=detected_s2 or 0,
     )
 
     if st.button("Save Result"):
+        update_match(mid, score1, score2)
 
-        conn = sqlite3.connect(DB)
-        c = conn.cursor()
-
-        c.execute(
-            """
-            SELECT id
-            FROM matches
-            WHERE done=0
-            AND (
-                (p1=? AND p2=?)
-                OR
-                (p1=? AND p2=?)
-            )
-            """,
-            (team1, team2, team2, team1),
+        st.success(
+            f"Saved: {team1} {score1} - {score2} {team2} ✅"
         )
-
-        match = c.fetchone()
-        conn.close()
-
-        if match:
-            update_match(
-                match[0],
-                score1,
-                score2,
-            )
-
-            st.success(
-                f"Saved: {team1} {score1} - {score2} {team2} ✅"
-            )
-
-        else:
-            st.error(
-                "No pending scheduled match found for these teams."
-            )
-
 
 # ---------- TAB 2 ----------
 with tab2:
@@ -195,7 +178,6 @@ with tab2:
         df,
         use_container_width=True,
     )
-
 
 # ---------- TAB 3 ----------
 with tab3:
