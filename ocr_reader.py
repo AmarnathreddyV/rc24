@@ -4,13 +4,17 @@ import re
 
 
 def read_scores(path):
-    img = Image.open(path)
+    try:
+        img = Image.open(path)
 
-    text = pytesseract.image_to_string(img)
+        text = pytesseract.image_to_string(img)
 
-    nums = re.findall(r"\d+", text)
+        nums = re.findall(r"\d+", text)
 
-    if len(nums) >= 2:
-        return int(nums[0]), int(nums[1])
+        if len(nums) >= 2:
+            return int(nums[0]), int(nums[1])
+
+    except Exception:
+        pass
 
     return None, None
