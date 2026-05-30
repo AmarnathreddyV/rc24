@@ -30,14 +30,16 @@ init_db()
 bg_img = get_base64("rcpic.jpg")
 
 
-# ---------- CSS ----------
+# ---------- CUSTOM CSS ----------
 st.markdown(
     f"""
     <style>
+
     .stApp {{
         background-image: url("data:image/jpg;base64,{bg_img}");
         background-size: cover;
         background-position: center;
+        background-repeat: no-repeat;
         background-attachment: fixed;
     }}
 
@@ -55,23 +57,49 @@ st.markdown(
         width:100%;
         border-radius:14px;
         font-weight:bold;
+        font-size:16px;
         background: linear-gradient(
             135deg,#ff9800,#ff5722
         );
         color:white;
+        border:none;
+        padding:10px;
     }}
+
+    .stTextInput > div > div > input {{
+        border-radius:12px;
+        background: rgba(255,255,255,0.15);
+        color:white;
+    }}
+
+    .stNumberInput input {{
+        border-radius:12px;
+    }}
+
+    [data-testid="stTabs"] {{
+        background: rgba(255,255,255,0.08);
+        border-radius:20px;
+        padding:10px;
+    }}
+
     </style>
     """,
     unsafe_allow_html=True,
 )
 
+# ---------- TITLE ----------
 st.markdown(
-    "<h1>🏏 RCPL CHAMPIONS LEAGUE </h1>",
+    "<h1>🏏 RC24 BLITZ WHEEL CHAMPIONSHIP</h1>",
     unsafe_allow_html=True,
 )
 
+# ---------- TABS ----------
 tab1, tab2, tab3 = st.tabs(
-    ["📸 Upload Result", "📊 Points Table", "🤖 Ask Bot"]
+    [
+        "📸 Upload Result",
+        "📊 Points Table",
+        "🤖 Ask Bot",
+    ]
 )
 
 # ---------- TAB 1 ----------
@@ -85,7 +113,6 @@ with tab1:
         step=1,
     )
 
-    # fetch scheduled teams
     conn = sqlite3.connect(DB)
     c = conn.cursor()
 
@@ -95,6 +122,7 @@ with tab1:
     )
 
     match = c.fetchone()
+
     conn.close()
 
     team1 = match[0]
@@ -109,53 +137,59 @@ with tab1:
 """
     )
 
-    if done:
-        st.warning("Result already saved for this match.")
-
-    file = st.file_uploader(
-        "Upload Screenshot (optional)"
-    )
-
-    detected_s1 = None
-    detected_s2 = None
-
-    if file:
-        path = f"screenshots/{file.name}"
-
-        with open(path, "wb") as f:
-            f.write(file.getbuffer())
-
-        detected_s1, detected_s2 = read_scores(path)
-
-        if detected_s1 is not None:
-            st.success(
-                f"OCR: {team1} {detected_s1} - {detected_s2} {team2}"
-            )
-        else:
-            st.info(
-                "OCR unavailable. Enter manually."
-            )
-
-    score1 = st.number_input(
-        f"{team1} score",
-        min_value=0,
-        step=1,
-        value=detected_s1 or 0,
-    )
-
-    score2 = st.number_input(
-        f"{team2} score",
-        min_value=0,
-        step=1,
-        value=detected_s2 or 0,
-    )
-
-    if st.button("Save Result"):
-        update_match(mid, score1, score2)
-
-        st.success(
-            f"Saved: {team1} {score1} - {score2} {team2} ✅"
+    # already saved
+    if done == 1:
+        st.error(
+            "❌ Already updated. Can't update now."
         )
+
+    else:
+        file = st.file_uploader(
+            "Upload Screenshot (optional)"
+        )
+
+        detected_s1 = None
+        detected_s2 = None
+
+        if file:
+            path = f"screenshots/{file.name}"
+
+            with open(path, "wb") as f:
+                f.write(file.getbuffer())
+
+            detected_s1, detected_s2 = read_scores(path)
+
+            if detected_s1 is not None:
+                st.success(
+                    f"OCR detected: {team1} {detected_s1} - {detected_s2} {team2}"
+                )
+            else:
+                st.info(
+                    "OCR unavailable. Enter manually."
+                )
+
+        score1 = st.number_input(
+            f"{team1} score",
+            min_value=0,
+            step=1,
+            value=detected_s1 or 0,
+        )
+
+        score2 = st.number_input(
+            f"{team2} score",
+            min_value=0,
+            step=1,
+            value=detected_s2 or 0,
+        )
+
+        if st.button("Save Result"):
+            update_match(mid, score1, score2)
+
+            st.success(
+                f"✅ Saved: {team1} {score1} - {score2} {team2}"
+            )
+
+            st.rerun()
 
 # ---------- TAB 2 ----------
 with tab2:
