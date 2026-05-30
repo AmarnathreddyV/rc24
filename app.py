@@ -11,10 +11,13 @@ from chatbot import ask_bot
 
 DB = "data/rc24.db"
 
+# change this password
+ADMIN_PASSWORD = "rc24admin"
+
 os.makedirs("screenshots", exist_ok=True)
 
 st.set_page_config(
-    page_title="RCPL CHAMPIONS LEAGUE",
+    page_title="RCPL Champions League",
     page_icon="🏏",
     layout="wide",
 )
@@ -25,12 +28,82 @@ def get_base64(file_path):
         return base64.b64encode(f.read()).decode()
 
 
+def recalculate_standings():
+    conn = sqlite3.connect(DB)
+    c = conn.cursor()
+
+    # reset standings
+    c.execute("""
+        UPDATE standings
+        SET
+            played=0,
+            win=0,
+            loss=0,
+            tie=0,
+            pts=0,
+            rrd=0
+    """)
+
+    # replay completed matches
+    c.execute("""
+        SELECT p1,p2,s1,s2
+        FROM matches
+        WHERE done=1
+    """)
+
+    matches = c.fetchall()
+
+    for p1, p2, s1, s2 in matches:
+
+        c.execute(
+            "UPDATE standings SET played=played+1, rrd=rrd+? WHERE player=?",
+            (s1 - s2, p1),
+        )
+
+        c.execute(
+            "UPDATE standings SET played=played+1, rrd=rrd+? WHERE player=?",
+            (s2 - s1, p2),
+        )
+
+        if s1 > s2:
+            c.execute(
+                "UPDATE standings SET win=win+1, pts=pts+3 WHERE player=?",
+                (p1,),
+            )
+            c.execute(
+                "UPDATE standings SET loss=loss+1 WHERE player=?",
+                (p2,),
+            )
+
+        elif s2 > s1:
+            c.execute(
+                "UPDATE standings SET win=win+1, pts=pts+3 WHERE player=?",
+                (p2,),
+            )
+            c.execute(
+                "UPDATE standings SET loss=loss+1 WHERE player=?",
+                (p1,),
+            )
+
+        else:
+            c.execute(
+                "UPDATE standings SET tie=tie+1, pts=pts+1 WHERE player=?",
+                (p1,),
+            )
+            c.execute(
+                "UPDATE standings SET tie=tie+1, pts=pts+1 WHERE player=?",
+                (p2,),
+            )
+
+    conn.commit()
+    conn.close()
+
+
 init_db()
 
 bg_img = get_base64("rcpic.jpg")
 
-
-# ---------- CUSTOM CSS ----------
+# ---------- CSS ----------
 st.markdown(
     f"""
     <style>
@@ -89,7 +162,7 @@ st.markdown(
 
 # ---------- TITLE ----------
 st.markdown(
-    "<h1>🏏 RCPL CHAMPIONS LEAGUE </h1>",
+    "<h1>🏏 RCPL CHAMPIONS LEAGUE</h1>",
     unsafe_allow_html=True,
 )
 
@@ -117,7 +190,7 @@ with tab1:
     c = conn.cursor()
 
     c.execute(
-        "SELECT p1,p2,done FROM matches WHERE id=?",
+        "SELECT p1,p2,s1,s2,done FROM matches WHERE id=?",
         (mid,),
     )
 
@@ -125,9 +198,7 @@ with tab1:
 
     conn.close()
 
-    team1 = match[0]
-    team2 = match[1]
-    done = match[2]
+    team1, team2, old1, old2, done = match
 
     st.markdown(
         f"""
@@ -137,11 +208,59 @@ with tab1:
 """
     )
 
-    # already saved
+    # already updated
     if done == 1:
-        st.error(
-            "❌ Already updated. Can't update now."
+        st.warning(
+            f"Already updated: {team1} {old1} - {old2} {team2}"
         )
+
+        st.markdown("### 🔐 Admin Edit")
+
+        pwd = st.text_input(
+            "Admin Password",
+            type="password",
+        )
+
+        if pwd == ADMIN_PASSWORD:
+
+            new1 = st.number_input(
+                f"{team1} corrected score",
+                min_value=0,
+                value=old1,
+                key=f"a1_{mid}",
+            )
+
+            new2 = st.number_input(
+                f"{team2} corrected score",
+                min_value=0,
+                value=old2,
+                key=f"a2_{mid}",
+            )
+
+            if st.button("Update as Admin"):
+
+                conn = sqlite3.connect(DB)
+                c = conn.cursor()
+
+                c.execute(
+                    """
+                    UPDATE matches
+                    SET s1=?, s2=?
+                    WHERE id=?
+                    """,
+                    (new1, new2, mid),
+                )
+
+                conn.commit()
+                conn.close()
+
+                recalculate_standings()
+
+                st.success(
+                    "✅ Match corrected successfully"
+                )
+
+                st.rerun()
 
     else:
         file = st.file_uploader(
@@ -159,35 +278,22 @@ with tab1:
 
             detected_s1, detected_s2 = read_scores(path)
 
-            if detected_s1 is not None:
-                st.success(
-                    f"OCR detected: {team1} {detected_s1} - {detected_s2} {team2}"
-                )
-            else:
-                st.info(
-                    "OCR unavailable. Enter manually."
-                )
-
         score1 = st.number_input(
             f"{team1} score",
             min_value=0,
-            step=1,
             value=detected_s1 or 0,
         )
 
         score2 = st.number_input(
             f"{team2} score",
             min_value=0,
-            step=1,
             value=detected_s2 or 0,
         )
 
         if st.button("Save Result"):
             update_match(mid, score1, score2)
 
-            st.success(
-                f"✅ Saved: {team1} {score1} - {score2} {team2}"
-            )
+            st.success("✅ Saved")
 
             st.rerun()
 
